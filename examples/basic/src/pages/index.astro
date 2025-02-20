@@ -1,0 +1,78 @@
+---
+import { Knob, Knobs } from "starlight-design-systems/components";
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Astro</title>
+	</head>
+	<body>
+		<main>
+			<div>
+				<h2>story</h2>
+				<pre><code><output /></code></pre>
+			</div>
+			<Knobs for="default">
+				<Knob prop="title" type="string" initialValue="Hello world" />
+				<Knob
+					prop="variant"
+					type="enum"
+					initialValue="primary"
+					options={["primary", "accent", "warning", "danger"]}
+				/>
+				<Knob prop="count" type="number" initialValue={1} />
+				<Knob prop="toggle" type="boolean" initialValue={true} />
+				<Knob prop="items" type="data" initialValue={[0, 1, 2]} />
+				<Knob prop="onClick" type="function" />
+			</Knobs>
+		</main>
+
+		<!-- Quick and dirty vanilla JS handler, this would be wired up automatically by the integration -->
+		<script>
+			import {
+				getInitialProps,
+				listen,
+			} from "starlight-design-systems/client";
+			const output = document.querySelector("output")!;
+			const props = getInitialProps("default");
+			function render() {
+				output.textContent = JSON.stringify(props, null, 2);
+			}
+			render();
+			listen(({ prop, value }) => {
+				props[prop] = value;
+				render();
+			});
+		</script>
+
+		<!-- demo styles -->
+		<style is:global>
+			:root {
+				font-family: sans-serif;
+			}
+			h2 {
+				font-size: 1rem;
+				font-weight: 700;
+				margin: 0;
+			}
+			main {
+				display: flex;
+				flex-direction: column;
+				gap: 2rem;
+				max-width: 22rem;
+				margin-inline: auto;
+			}
+			output {
+				display: block;
+				border: 1px solid gainsboro;
+				background: whitesmoke;
+				padding: 1rem;
+				border-radius: 4px;
+			}
+		</style>
+	</body>
+</html>

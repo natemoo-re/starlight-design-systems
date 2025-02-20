@@ -1,0 +1,270 @@
+---
+interface StringProps {
+	type: 'string';
+	initialValue?: string;
+}
+interface BooleanProps {
+	type: 'boolean';
+	initialValue?: boolean;
+}
+interface DateProps {
+	type: 'date';
+	initialValue?: Date;
+}
+interface NumberProps {
+	type: 'number';
+	initialValue?: number;
+}
+interface EnumProps {
+	type: 'enum';
+	options: string[];
+	initialValue?: string; 
+}
+interface DataProps {
+	type: 'data';
+	initialValue?: Array<unknown> | Record<string, unknown>;
+}
+type PropsByType = StringProps | BooleanProps | DateProps | NumberProps | EnumProps | DataProps;
+
+type Props = {
+	/** the key of the property this knob controls */
+	prop: string;
+} & PropsByType;
+const { prop, type, initialValue: value, options = [] } = Astro.props;
+---
+
+<sl-knob {prop} {type}>
+	<label>
+		<code>{prop}</code>
+		{
+			() => {
+				switch (type) {
+					case "string":
+						return <input name={prop} type="text" value={value} />;
+					case "number":
+						return <input name={prop} type="number" value={JSON.stringify(value)} />;
+					case "date":
+						return <input name={prop} type="date" value={JSON.stringify(value)} />;
+					case "boolean":
+						return (
+							<div class="toggle">
+								<label>
+									<input
+										name={prop}
+										type="radio"
+										value="false"
+										checked={
+											value === false
+												? true
+												: undefined
+										}
+									/>
+									<span>false</span>
+								</label>
+								<label>
+									<input
+										name={prop}
+										type="radio"
+										value="true"
+										checked={
+											value === true
+												? true
+												: undefined
+										}
+									/>
+									<span>true</span>
+								</label>
+							</div>
+						);
+
+					case "enum":
+						return (
+							<select name={prop}>
+								{options.map((option: string) => (
+									<option
+										selected={
+											option === value
+												? true
+												: undefined
+										}
+									>
+										{option}
+									</option>
+								))}
+							</select>
+						);
+					case "data":
+						return (
+							<textarea
+								name={prop}
+								set:text={JSON.stringify(value)}
+							/>
+						);
+					default:
+						return <input name={prop} type="text" {value} />;
+				}
+			}
+		}
+	</label>
+</sl-knob>
+
+<script>
+	class StarlightKnob extends HTMLElement {
+		constructor() {
+			super();
+			this.onChange = this.onChange.bind(this);
+		}
+		connectedCallback() {
+			this.addEventListener("input", this.onChange);
+		}
+		disconnectedCallback() {
+			this.removeEventListener("input", this.onChange);
+		}
+		get type() {
+			return this.getAttribute("type");
+		}
+		get prop() {
+			return this.getAttribute("prop");
+		}
+		get value() {
+			const input = this.querySelector(":is(input, select, textarea)") as
+				| HTMLInputElement
+				| HTMLSelectElement
+				| HTMLTextAreaElement;
+			if (this.type === 'boolean') {
+				return truthy.has((this.querySelector('input[checked]') as HTMLInputElement)?.value)
+			}
+			return this.coerce(input);
+		}
+		get story() {
+			return this.closest("sl-knobs")?.getAttribute("for");
+		}
+		coerce(target: EventTarget | null) {
+			const value = extractValue(target);
+			if (this.type && typeof value === "string") {
+				switch (this.type) {
+					case "data": {
+						try {
+							return JSON.parse(value);
+						} catch (e) {
+							try {
+								return dangerouslyRunCode(value);
+							} catch (e) {}
+							return new CoerceError();
+						}
+					}
+				}
+			}
+			return value;
+		}
+
+		onChange(event: Event) {
+			const value = this.coerce(event.target);
+			if (value instanceof CoerceError) return;
+			const { prop, story } = this;
+			this.dispatchEvent(
+				new CustomEvent("starlight:knobchange", {
+					bubbles: true,
+					detail: { story, prop, value },
+				}),
+			);
+		}
+	}
+
+	function dangerouslyRunCode(code: string) {
+		try {
+			return Function(`"use strict";return (${code});`)();
+		} catch (e) {}
+	}
+
+	class CoerceError extends Error {}
+
+	function extractValue(target?: EventTarget | null) {
+		if (!target) return undefined;
+		if (target instanceof HTMLInputElement) {
+			switch (target.type) {
+				case "number":
+					return target.valueAsNumber;
+				case "month":
+				case "week":
+				case "time":
+				case "date":
+					return target.valueAsDate;
+				case "radio":
+					if (truthy.has(target.value)) return true;
+					if (falsey.has(target.value)) return false;
+					return target.value;
+				default:
+					return target.value;
+			}
+		}
+		if ("value" in target) return target.value;
+		return undefined;
+	}
+
+	const truthy = new Set(["true", "1"]);
+	const falsey = new Set(["false", "0"]);
+	customElements.define("sl-knob", StarlightKnob);
+</script>
+
+<style>
+	input,
+	textarea,
+	select {
+		border: 1px solid black;
+		border-radius: 4px;
+		padding: 0.5rem;
+	}
+	:where(input, textarea, select):focus {
+		outline: auto;
+	}
+	textarea {
+		font-family: monospace;
+		white-space: pre;
+		resize: vertical;
+		field-sizing: normal;
+	}
+
+	sl-knob,
+	sl-knob > label {
+		display: contents;
+	}
+	sl-knob label > * {
+		display: flex;
+		align-items: center;
+	}
+	.toggle {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+	}
+	.toggle label input {
+		clip: rect(0 0 0 0);
+		clip-path: inset(50%);
+		height: 1px;
+		overflow: hidden;
+		position: absolute;
+		white-space: nowrap;
+		width: 1px;
+	}
+	.toggle label {
+		display: flex;
+		flex-grow: 1;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem 0.25rem;
+		border: 1px solid black;
+	}
+	.toggle label:has(:checked) {
+		background-color: whitesmoke;
+	}
+	.toggle label:has(:focus) {
+		outline: auto;
+	}
+	.toggle label:first-of-type {
+		border-radius: 4px 0 0 4px;
+		border-right: 0;
+	}
+	.toggle label:last-of-type {
+		border-radius: 0 4px 4px 0;
+	}
+</style>

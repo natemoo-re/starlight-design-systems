@@ -1,0 +1,43 @@
+---
+interface Props {
+    /** a unique identifier for this story */
+    for: string;
+}
+const { for: name } = Astro.props;
+---
+
+<sl-knobs for={name}><form novalidate><slot /></form></sl-knobs>
+
+<script>
+    class StarlightKnobs extends HTMLElement {
+        get props() {
+            const knobs = this.querySelectorAll("sl-knob");
+            const values: Record<string, unknown> = {};
+            for (const knob of knobs) {
+                const { prop, value } = knob as unknown as { prop: string, value: string };
+                if (!Object.hasOwn(values, prop)) {
+                    values[prop] = value;
+                } else if (Array.isArray(values[prop])) {
+                    const pointer = values[prop];
+                    pointer.push(value);
+                } else {
+                    values[prop] = [values[prop], value];
+                }
+            }
+            return values;
+        }
+    }
+
+    customElements.define("sl-knobs", StarlightKnobs);
+</script>
+
+<style>
+form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3fr;
+    grid-auto-flow: row;
+    grid-auto-rows: minmax(2rem, max-content);
+    gap: 0.5rem 1rem;
+    justify-content: center;
+}
+</style>
