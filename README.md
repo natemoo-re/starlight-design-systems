@@ -14,6 +14,7 @@ The main package exports some Astro-based web components which wrap native form 
 The goal is that these primitives could become the basis for a [Starlight](https://starlight.astro.build/) integration that automatically wires up interactive previews for design system components.
 
 **Proof of Concept**
+- [x] Hooks for Vanilla JS
 - [x] Hooks for React components
 - [ ] Hooks for Preact components
 - [ ] Hooks for Vue components
